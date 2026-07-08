@@ -1,0 +1,128 @@
+@import url('https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&display=swap');
+
+* {
+    box-sizing: border-box;
+    font-family: 'Courier Prime', monospace, sans-serif;
+}
+
+body {
+    background-color: #0f380f; /* El verde más oscuro de tu paleta */
+    color: #8bac0f;            /* El verde claro base */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+    padding: 20px;
+    image-rendering: pixelated;
+}
+
+.menu-container {
+    text-align: center;
+    max-width: 500px;
+    width: 100%;
+    background-color: #306230; /* Verde intermedio */
+    border: 4px solid #9bbc0f;
+    padding: 40px 20px;
+    box-shadow: 8px 8px 0px #000;
+}
+
+/* --- Animación y Estilo del Título --- */
+.logo-box {
+    position: relative;
+    background-color: #8bac0f;
+    border: 4px solid #0f380f;
+    padding: 15px;
+    margin-bottom: 15px;
+}
+
+.game-title {
+    color: #0f380f;
+    font-size: 3.5rem;
+    margin: 0;
+    font-weight: bold;
+    letter-spacing: 4px;
+    animation: pulse 1.5s infinite alternate;
+}
+
+.game-tagline {
+    color: #9bbc0f;
+    font-size: 1rem;
+    margin-bottom: 30px;
+    text-transform: uppercase;
+}
+
+/* --- Tarjeta de Controles --- */
+.controls-card {
+    background-color: #0f380f;
+    border: 2px solid #9bbc0f;
+    padding: 15px;
+    text-align: left;
+    margin-bottom: 35px;
+}
+
+.controls-card h3 {
+    margin-top: 0;
+    color: #8bac0f;
+    font-size: 1.1rem;
+    border-bottom: 2px dashed #306230;
+    padding-bottom: 5px;
+    text-align: center;
+}
+
+.controls-card ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.controls-card li {
+    font-size: 0.95rem;
+    margin: 8px 0;
+    color: #9bbc0f;
+}
+
+.controls-card span {
+    color: #8bac0f;
+    font-weight: bold;
+    display: inline-block;
+    width: 70px;
+}
+
+/* --- Botón Retro Dinámico --- */
+.btn-play {
+    display: inline-block;
+    background-color: #9bbc0f;
+    color: #0f380f;
+    font-size: 1.5rem;
+    font-weight: bold;
+    padding: 12px 35px;
+    text-decoration: none;
+    border: 4px solid #0f380f;
+    box-shadow: 4px 4px 0px #0f380f;
+    transition: all 0.1s ease;
+    cursor: pointer;
+}
+
+.btn-play:hover {
+    background-color: #8bac0f;
+    transform: translate(-2px, -2px);
+    box-shadow: 6px 6px 0px #0f380f;
+}
+
+.btn-play:active {
+    transform: translate(4px, 4px);
+    box-shadow: 0px 0px 0px #0f380f;
+}
+
+.footer-credit {
+    margin-top: 30px;
+    font-size: 0.8rem;
+    color: #0f380f;
+}
+
+/* Animación retro parpadeante sutil */
+@keyframes pulse {
+    from { transform: scale(1); }
+    to { transform: scale(1.03); }
+}
