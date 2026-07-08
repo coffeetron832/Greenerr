@@ -5,7 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Greenerr</title>
 
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 fill=%22%230f380f%22/></svg>">
+    <link id="dynamic-favicon" rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%230f380f'/></svg>">
+    
+    <script>
+        const colors = ['#0f380f', '#306230', '#8bac0f', '#9bbc0f'];
+        let currentIndex = 0;
+
+        setInterval(() => {
+            currentIndex = (currentIndex + 1) % colors.length;
+            const color = colors[currentIndex];
+            const favicon = document.getElementById('dynamic-favicon');
+            
+            favicon.href = `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='${encodeURIComponent(color)}'/></svg>`;
+        }, 2000);
+    </script>
     <link rel="stylesheet" href="game.css">
 </head>
 <body>
