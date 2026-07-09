@@ -1,8 +1,9 @@
-@import url('https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
 
 * {
     box-sizing: border-box;
-    font-family: 'Courier Prime', monospace, sans-serif;
+    /* Cambiado a la fuente píxel para todo el juego */
+    font-family: 'Press Start 2P', monospace, sans-serif;
 }
 
 body {
@@ -14,7 +15,7 @@ body {
     min-height: 100vh;
     margin: 0;
     padding: 20px;
-    image-rendering: pixelated;
+    image-rendering: pixelated; /* Mantiene los bordes nítidos estilo retro */
 }
 
 .menu-container {
@@ -38,18 +39,19 @@ body {
 
 .game-title {
     color: #0f380f;
-    font-size: 3.5rem;
+    font-size: 2.2rem; /* Ajustado para que la fuente píxel no se desborde */
     margin: 0;
     font-weight: bold;
-    letter-spacing: 4px;
+    letter-spacing: 2px;
     animation: pulse 1.5s infinite alternate;
 }
 
 .game-tagline {
     color: #9bbc0f;
-    font-size: 1rem;
+    font-size: 0.65rem; /* Ajustado por la densidad de la fuente */
     margin-bottom: 30px;
     text-transform: uppercase;
+    line-height: 1.4;
 }
 
 /* --- Tarjeta de Controles --- */
@@ -64,7 +66,7 @@ body {
 .controls-card h3 {
     margin-top: 0;
     color: #8bac0f;
-    font-size: 1.1rem;
+    font-size: 0.8rem; /* Ajustado */
     border-bottom: 2px dashed #306230;
     padding-bottom: 5px;
     text-align: center;
@@ -77,16 +79,17 @@ body {
 }
 
 .controls-card li {
-    font-size: 0.95rem;
-    margin: 8px 0;
+    font-size: 0.55rem; /* Ajustado para una lectura perfecta en listas de 8 bits */
+    margin: 12px 0;
     color: #9bbc0f;
+    line-height: 1.6;
 }
 
 .controls-card span {
     color: #8bac0f;
     font-weight: bold;
     display: inline-block;
-    width: 70px;
+    margin-right: 5px;
 }
 
 /* --- Botón Retro Dinámico --- */
@@ -94,9 +97,9 @@ body {
     display: inline-block;
     background-color: #9bbc0f;
     color: #0f380f;
-    font-size: 1.5rem;
+    font-size: 0.9rem; /* Ajustado para que el texto quepa bien en el botón */
     font-weight: bold;
-    padding: 12px 35px;
+    padding: 15px 25px;
     text-decoration: none;
     border: 4px solid #0f380f;
     box-shadow: 4px 4px 0px #0f380f;
@@ -117,7 +120,7 @@ body {
 
 .footer-credit {
     margin-top: 30px;
-    font-size: 0.8rem;
+    font-size: 0.5rem; /* Ajustado */
     color: #0f380f;
 }
 
