@@ -9,8 +9,10 @@ const VIRTUAL_HEIGHT = 480;
 canvas.width = VIRTUAL_WIDTH;
 canvas.height = VIRTUAL_HEIGHT;
 
-// --- Estado de Pausa ---
+// --- Estado de Pausa y Niveles ---
 let isPaused = false;
+let currentLevel = 1;
+const MAX_LEVELS = 3;
 
 // --- Sistema de Audio Procedural (Web Audio API) ---
 let audioCtx = null;
@@ -27,13 +29,15 @@ function startBGM() {
     let step = 0;
 
     bgmInterval = setInterval(() => {
-        if (!audioCtx || audioCtx.state === 'suspended' || isPaused) return; // No suena si está pausado
+        if (!audioCtx || audioCtx.state === 'suspended' || isPaused) return; 
 
         let osc = audioCtx.createOscillator();
         let gainNode = audioCtx.createGain();
         
         osc.type = 'triangle'; 
-        osc.frequency.setValueAtTime(notes[step % notes.length], audioCtx.currentTime);
+        // Modificar ligeramente el tono base según el nivel actual
+        let freqModifier = 1 + (currentLevel - 1) * 0.15;
+        osc.frequency.setValueAtTime(notes[step % notes.length] * freqModifier, audioCtx.currentTime);
         
         gainNode.gain.setValueAtTime(0.04, audioCtx.currentTime);
         gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.35);
@@ -49,7 +53,7 @@ function startBGM() {
 }
 
 function playSFX(type, customParam = 0) {
-    if (isPaused) return; // No reproducir SFX en pausa
+    if (isPaused) return; 
     if (!audioCtx) initAudio();
     if (audioCtx.state === 'suspended') audioCtx.resume();
 
@@ -113,17 +117,14 @@ function playSFX(type, customParam = 0) {
 
 window.addEventListener('click', () => { initAudio(); if(audioCtx.state === 'suspended') audioCtx.resume(); });
 
-// --- Función para ajustar el Canvas a la ventana manteniendo el Aspect Ratio ---
 function resizeCanvas() {
-    const windowWidth = window.innerWidth - 20; // Pequeño margen para que no toque los bordes exactos
+    const windowWidth = window.innerWidth - 20; 
     const windowHeight = window.innerHeight - 20;
     
-    // Calcula cuál es el factor de escala limitante
     const scaleX = windowWidth / VIRTUAL_WIDTH;
     const scaleY = windowHeight / VIRTUAL_HEIGHT;
     const scaleToFit = Math.min(scaleX, scaleY);
     
-    // Asigna el tamaño de despliegue visual mediante CSS
     canvas.style.width = (VIRTUAL_WIDTH * scaleToFit) + 'px';
     canvas.style.height = (VIRTUAL_HEIGHT * scaleToFit) + 'px';
 }
@@ -148,25 +149,33 @@ let player = {
     displayPowerTimer: 0, 
     lastThrowPower: 0,
     
-    // Estado de modificadores / ayudas activas
-    activePower: null // Valores: 'BLASTER', 'GLOVES', 'BOOTS', 'ARMOR'
+    activePower: null 
 };
 
 let platforms = [];
 let enemies = [];
 let particles = []; 
-let projectiles = []; // Guarda las balas del Bláster de impulso
-let powerStations = []; // Estaciones de ayuda iniciales
+let projectiles = []; 
+let powerStations = []; 
+let hazards = []; // Pinchos y obstáculos dañinos por nivel
+let levelGoal = null; // Zona de meta para avanzar de nivel
 let cameraX = 0;
 const levelWidth = 4000;
+
+// Configuración de Paletas por Nivel (Estilo Game Boy / Retro)
+const palettes = {
+    1: { bg: '#8bac0f', primary: '#306230', secondary: '#9bbc0f', dark: '#0f380f' }, // Clásico
+    2: { bg: '#c4cfa1', primary: '#4e5835', secondary: '#8b966c', dark: '#1f240a' }, // Tierra / Cueva
+    3: { bg: '#2e3f45', primary: '#9bbc0f', secondary: '#53717c', dark: '#0b1114' }  // Tecnológico / Final
+};
 
 function initLevel() {
     platforms = [{ x: 0, y: 400, w: 380, h: 40 }];
     enemies = [];
     particles = [];
     projectiles = [];
+    hazards = [];
     
-    // Mantener o reiniciar propiedades físicas base según el powerup activo
     if (player.activePower !== 'BOOTS') {
         player.gravity = 0.40;
         player.maxCoyote = 6;
@@ -180,7 +189,7 @@ function initLevel() {
     player.throwPower = 0;
     player.displayPowerTimer = 0;
     
-    // Inicializar las 4 Estaciones de Ayuda en la primera plataforma
+    // Las 4 Estaciones de Ayuda iniciales
     powerStations = [
         { id: 'BLASTER', x: 100, y: 360, w: 36, h: 36, active: true, draw: drawBlaster },
         { id: 'GLOVES',  x: 160, y: 360, w: 36, h: 36, active: true, draw: drawGloves },
@@ -188,7 +197,6 @@ function initLevel() {
         { id: 'ARMOR',   x: 280, y: 360, w: 36, h: 36, active: true, draw: drawArmor }
     ];
 
-    // Desactivar estaciones visualmente si ya se tiene un poder seleccionado anteriormente
     if (player.activePower) {
         powerStations.forEach(s => s.active = false);
     }
@@ -196,18 +204,30 @@ function initLevel() {
     let currentX = 380; 
     let lastY = 400;
 
-    while (currentX < levelWidth - 200) {
+    // --- Generación de terreno procedural adaptativa por Nivel ---
+    while (currentX < levelWidth - 300) {
         let gap = 70 + Math.random() * 80; 
+        if (currentLevel === 2) gap += 15; // Huecos más anchos en nivel 2
+        if (currentLevel === 3) gap += 25; // Saltos complejos en nivel 3
+
         let px = currentX + gap;
         let pw = 100 + Math.random() * 80; 
+        if (currentLevel === 3) pw = 80 + Math.random() * 50; // Plataformas más pequeñas en nivel 3
+
         let py = lastY + (Math.floor(Math.random() * 3) - 1) * 50; 
-        
-        if (py < 200) py = 200;
+        if (py < 180) py = 180;
         if (py > 400) py = 400;
 
         platforms.push({ x: px, y: py, w: pw, h: 40 });
 
-        if (Math.random() < 0.6) {
+        // Añadir Pinchos (Hazards) en el suelo de los huecos a partir del Nivel 2
+        if (currentLevel >= 2 && Math.random() < 0.5) {
+            hazards.push({ x: currentX + 10, y: 460, w: gap - 20, h: 20, damage: 25 });
+        }
+
+        // Distribución de enemigos modificada por nivel
+        let spawnChance = 0.5 + (currentLevel * 0.1);
+        if (Math.random() < spawnChance) {
             let ex = px + 20;
             let ey = py - 20;
             
@@ -218,44 +238,73 @@ function initLevel() {
                 stunTimer: 0,
                 p1: { x: ex + 10, y: ey + 15, ox: ex + 10, oy: ey + 15 },
                 p2: { x: ex + 10, y: ey + 5,  ox: ex + 10, oy: ey + 5  },
-                length: 12
+                length: 12,
+                isBoss: false
             });
         }
 
         currentX = px + pw;
         lastY = py;
     }
-    platforms.push({ x: currentX + 50, y: 350, w: 150, h: 130 });
+
+    // --- Plataforma Final Estructurada ---
+    let finalPlatformY = 350;
+    platforms.push({ x: currentX + 50, y: finalPlatformY, w: 250, h: 130 });
+
+    // Si es el Nivel 3, posicionamos el "Jefe Final" custodiando la meta
+    if (currentLevel === 3) {
+        let bx = currentX + 100;
+        let by = finalPlatformY - 40;
+        enemies.push({
+            x: bx, y: by, w: 40, h: 40,
+            dir: -1, dx: 0, dy: 0,
+            state: 'WALKING',
+            stunTimer: 0,
+            p1: { x: bx + 20, y: by + 30, ox: bx + 20, oy: by + 30 },
+            p2: { x: bx + 20, y: by + 10, ox: bx + 20, oy: by + 10 },
+            length: 24,
+            isBoss: true,
+            hp: 3 // Requiere ser golpeado 3 veces con otros enemigos arrojados
+        });
+    }
+
+    // Definición de la zona de Meta (Level Goal)
+    levelGoal = {
+        x: currentX + 240,
+        y: finalPlatformY - 50,
+        w: 30,
+        h: 50
+    };
 }
 
 // --- Funciones de Dibujo de Texturas (Iconos Pixelados) ---
 function drawBlaster(ctx, x, y, w, h) {
-    ctx.fillStyle = '#0f380f'; // Color oscuro para contorno
+    ctx.fillStyle = palettes[currentLevel].dark; 
     ctx.fillRect(x + 8, y + 12, 20, 8); 
     ctx.fillRect(x + 24, y + 8, 4, 16); 
     ctx.fillRect(x + 28, y + 14, 6, 4); 
-    ctx.fillStyle = '#9bbc0f';
+    ctx.fillStyle = palettes[currentLevel].secondary;
     ctx.fillRect(x + 10, y + 14, 12, 4);
 }
 
 function drawGloves(ctx, x, y, w, h) {
-    ctx.fillStyle = '#306230'; 
+    ctx.fillStyle = palettes[currentLevel].primary; 
     ctx.fillRect(x + 4, y + 10, 12, 16);
     ctx.fillRect(x + 6, y + 6, 8, 4); 
     ctx.fillRect(x + 20, y + 10, 12, 16);
     ctx.fillRect(x + 22, y + 6, 8, 4); 
-    ctx.fillStyle = '#0f380f';
+    ctx.fillStyle = palettes[currentLevel].dark;
     ctx.fillRect(x + 6, y + 12, 2, 2); ctx.fillRect(x + 10, y + 12, 2, 2);
     ctx.fillRect(x + 22, y + 12, 2, 2); ctx.fillRect(x + 26, y + 12, 2, 2);
 }
 
 function drawBoots(ctx, x, y, w, h) {
-    ctx.fillStyle = '#0f380f'; 
+    ctx.fillStyle = palettes[currentLevel].dark; 
     ctx.fillRect(x + 6, y + 14, 10, 14); 
     ctx.fillRect(x + 2, y + 24, 14, 4); 
     ctx.fillRect(x + 20, y + 14, 10, 14); 
     ctx.fillRect(x + 16, y + 24, 14, 4); 
-    ctx.fillStyle = '#8bac0f';
+    ctx.fillStyle = palettes[currentLevel].secondary;
     ctx.fillRect(x + 8, y + 16, 6, 2); ctx.fillRect(x + 8, y + 20, 6, 2);
     ctx.fillRect(x + 22, y + 16, 6, 2); ctx.fillRect(x + 22, y + 20, 6, 2);
 }
@@ -266,7 +315,7 @@ function drawArmor(ctx, x, y, w, h) {
     ctx.fillRect(x + 10, y + 2, 16, 4); 
     ctx.fillRect(x + 2, y + 8, 4, 12);
     ctx.fillRect(x + 30, y + 8, 4, 12);
-    ctx.fillStyle = '#0f380f';
+    ctx.fillStyle = palettes[currentLevel].dark;
     ctx.fillRect(x + 10, y + 10, 16, 2); ctx.fillRect(x + 10, y + 16, 16, 2);
 }
 
@@ -377,6 +426,8 @@ function handleActionPress() {
     };
 
     for (let e of enemies) {
+        if (e.isBoss) continue; // El jefe no se puede levantar directamente
+        
         if (e.state === 'STUNNED' && checkCollision(grabRadiusBox, e)) {
             player.carrying = e;
             e.state = 'CARRIED';
@@ -423,6 +474,7 @@ function throwEnemy() {
 }
 
 let pauseFlashTimer = 0;
+let levelTransitionTimer = 0;
 
 function update() {
     if (!isPaused) {
@@ -471,6 +523,7 @@ function update() {
             if (checkCollision(player, p)) {
                 if (player.dx > 0) player.x = p.x - player.w;
                 else if (player.dx < 0) player.x = p.x + p.w;
+                clearInterval();
                 player.dx = 0;
             }
         }
@@ -490,6 +543,33 @@ function update() {
             }
         }
 
+        // --- Colisión con Peligros Estáticos (Hazards) ---
+        for (let h of hazards) {
+            if (checkCollision(player, h)) {
+                let armorActive = (player.activePower === 'ARMOR');
+                player.hp -= armorActive ? h.damage * 0.5 : h.damage;
+                player.dy = -7; // Rebote involuntario por daño
+                playSFX('stun');
+                createDust(player.x + player.w/2, player.y + player.h/2, 8, 0, -2);
+            }
+        }
+
+        // --- Comprobar llegada a la Meta ---
+        if (levelGoal && checkCollision(player, levelGoal)) {
+            if (currentLevel < MAX_LEVELS) {
+                currentLevel++;
+                levelTransitionTimer = 90; // Activa mensaje en pantalla
+                initLevel();
+                player.x = 40; player.y = 300; player.dx = 0; player.dy = 0;
+            } else {
+                // Reiniciar juego completo al terminar el ciclo de niveles
+                currentLevel = 1;
+                player.activePower = null;
+                initLevel();
+                player.x = 40; player.y = 300;
+            }
+        }
+
         // --- Actualizar Balas Bláster ---
         for (let i = projectiles.length - 1; i >= 0; i--) {
             let proj = projectiles[i];
@@ -499,6 +579,10 @@ function update() {
             let destroyed = false;
             for (let e of enemies) {
                 if (e.state === 'WALKING' && checkCollision(proj, e)) {
+                    if (e.isBoss) {
+                        destroyed = true; // Absorbe el disparo sin morir
+                        break;
+                    }
                     e.state = 'THROWN'; 
                     playSFX('stun');
                     
@@ -531,7 +615,9 @@ function update() {
             }
 
             if (e.state === 'WALKING') {
-                e.x += e.dir * 2;
+                // Comportamiento del Boss: Estático o patrulla mínima reducida
+                let moveSpeed = e.isBoss ? 0.5 : 2;
+                e.x += e.dir * moveSpeed;
                 let onPlatform = false;
                 let futureX = e.x + (e.dir == 1 ? e.w : 0);
                 
@@ -542,17 +628,17 @@ function update() {
                     }
                 }
                 if (!onPlatform || e.x < 0 || e.x > levelWidth - e.w) {
-                    e.x -= e.dir * 2; e.dir *= -1;
+                    e.x -= e.dir * moveSpeed; e.dir *= -1;
                 }
 
-                e.p1.x = e.x + 10; e.p1.y = e.y + 15;
-                e.p2.x = e.x + 10; e.p2.y = e.y + 5;
+                e.p1.x = e.x + e.w/2; e.p1.y = e.y + (e.h * 0.75);
+                e.p2.x = e.x + e.w/2; e.p2.y = e.y + (e.h * 0.25);
                 e.p1.ox = e.p1.x; e.p1.oy = e.p1.y;
                 e.p2.ox = e.p2.x; e.p2.oy = e.p2.y;
 
                 if (checkCollision(player, e)) {
                     let armorActive = (player.activePower === 'ARMOR');
-                    player.hp -= armorActive ? 0.6 : 1.2;
+                    player.hp -= armorActive ? (e.isBoss ? 1.5 : 0.6) : (e.isBoss ? 3.0 : 1.2);
                     player.dx = e.dir * (armorActive ? 2 : 4);
                     player.dy = -3;
                     playSFX('stun'); 
@@ -569,8 +655,6 @@ function update() {
                                 e.y = p.y - e.h; break;
                             }
                         }
-                        e.p1.x = e.x + 10; e.p1.y = e.y + 15; e.p2.x = e.x + 10; e.p2.y = e.y + 5;
-                        e.p1.ox = e.p1.x; e.p1.oy = e.p1.y; e.p2.ox = e.p2.x; e.p2.oy = e.p2.y;
                         continue;
                     }
                 }
@@ -627,12 +711,24 @@ function update() {
                     let hitEnemy = false;
                     for (let j = enemies.length - 1; j >= 0; j--) {
                         let target = enemies[j];
-                        if (target !== e && (target.state === 'WALKING' || target.state === 'STUNNED') && checkCollision(e, target)) {
-                            playSFX('stun');
-                            createDust(target.x + target.w/2, target.y + target.h/2, 12, (e.p1.x - e.p1.ox) * 0.5, -2);
-                            enemies.splice(Math.max(i, j), 1); enemies.splice(Math.min(i, j), 1);
-                            if (i <= j) i--; 
-                            hitEnemy = true; break;
+                        if (target !== e && checkCollision(e, target)) {
+                            if (target.isBoss) {
+                                target.hp--;
+                                createDust(target.x + target.w/2, target.y + target.h/2, 15, 2, -2);
+                                playSFX('stun');
+                                if (target.hp <= 0) {
+                                    enemies.splice(j, 1); // Eliminar Jefe Final
+                                }
+                                enemies.splice(i, 1); // Eliminar proyectil arrojado
+                                hitEnemy = true;
+                                break;
+                            } else if (target.state === 'WALKING' || target.state === 'STUNNED') {
+                                playSFX('stun');
+                                createDust(target.x + target.w/2, target.y + target.h/2, 12, (e.p1.x - e.p1.ox) * 0.5, -2);
+                                enemies.splice(Math.max(i, j), 1); enemies.splice(Math.min(i, j), 1);
+                                if (i <= j) i--; 
+                                hitEnemy = true; break;
+                            }
                         }
                     }
                     if (hitEnemy) continue;
@@ -669,6 +765,8 @@ function update() {
             player.jumping = false; player.hp = player.maxHp;
             cameraX = 0;
         }
+        
+        if (levelTransitionTimer > 0) levelTransitionTimer--;
     } else {
         pauseFlashTimer++;
     }
@@ -678,7 +776,10 @@ function update() {
 }
 
 function draw() {
-    ctx.fillStyle = '#8bac0f';
+    let style = palettes[currentLevel];
+    
+    // Color de Fondo Estilizado por nivel
+    ctx.fillStyle = style.bg;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
     ctx.save();
@@ -690,65 +791,109 @@ function draw() {
     });
 
     // Plataformas
-    ctx.fillStyle = '#0f380f';
+    ctx.fillStyle = style.dark;
     platforms.forEach(p => ctx.fillRect(p.x, p.y, p.w, p.h));
+
+    // Peligros / Pinchos Estáticos
+    ctx.fillStyle = '#9b400f';
+    hazards.forEach(h => {
+        ctx.fillRect(h.x, h.y, h.w, h.h);
+        // Pequeños dientes de sierra pixelados
+        ctx.fillStyle = style.dark;
+        for (let sx = h.x; sx < h.x + h.w; sx += 8) {
+            ctx.beginPath();
+            ctx.moveTo(sx, h.y);
+            ctx.lineTo(sx + 4, h.y - 6);
+            ctx.lineTo(sx + 8, h.y);
+            ctx.fill();
+        }
+        ctx.fillStyle = '#9b400f';
+    });
+
+    // Dibujar Meta (Bandera o zona de paso)
+    if (levelGoal) {
+        ctx.fillStyle = style.dark;
+        ctx.fillRect(levelGoal.x, levelGoal.y, 4, levelGoal.h); // Mástil
+        ctx.fillStyle = '#9bbc0f';
+        ctx.fillRect(levelGoal.x + 4, levelGoal.y, 20, 14); // Bandera
+    }
     
-    // Enemigos
+    // Enemigos y Jefes
     enemies.forEach(e => {
         if (e.state === 'WALKING') {
-            ctx.fillStyle = '#9b400f'; 
+            ctx.fillStyle = e.isBoss ? '#0f380f' : '#9b400f'; 
             ctx.fillRect(e.x, e.y, e.w, e.h);
+            
+            // Corona o rasgo distintivo si es Boss
+            if (e.isBoss) {
+                ctx.fillStyle = '#9bbc0f';
+                ctx.fillRect(e.x + 10, e.y - 6, 20, 6);
+            }
         } else {
             if (e.state === 'STUNNED' || e.state === 'CARRIED') ctx.fillStyle = '#555555';
-            else if (e.state === 'THROWN') ctx.fillStyle = '#0f380f';
+            else if (e.state === 'THROWN') ctx.fillStyle = style.dark;
 
             let angle = Math.atan2(e.p2.y - e.p1.y, e.p2.x - e.p1.x) + Math.PI / 2;
             ctx.save();
             ctx.translate(e.p1.x, e.p1.y);
             ctx.rotate(angle);
-            ctx.fillRect(-10, -5, 20, 10);
-            ctx.fillRect(-6, -15, 12, 10);
+            ctx.fillRect(-e.w/2, -5, e.w, 10);
+            ctx.fillRect(-e.w/4, -15, e.w/2, 10);
             ctx.restore();
         }
     });
 
     // Balas del Bláster
-    ctx.fillStyle = '#0f380f';
+    ctx.fillStyle = style.dark;
     projectiles.forEach(proj => ctx.fillRect(proj.x, proj.y, proj.w, proj.h));
 
     // Partículas
-    ctx.fillStyle = '#306230';
+    ctx.fillStyle = style.primary;
     particles.forEach(pt => ctx.fillRect(pt.x, pt.y, pt.size, pt.size));
 
     // Jugador
-    ctx.fillStyle = '#306230';
+    ctx.fillStyle = style.primary;
     ctx.fillRect(player.x, player.y, player.w, player.h);
 
     // UI Dinámica de Carga de Lanzamiento
     if (player.isChargingThrow) {
-        ctx.fillStyle = '#0f380f';
+        ctx.fillStyle = style.dark;
         ctx.fillRect(player.x - 5, player.y - 25, 30, 6);
-        ctx.fillStyle = '#9bbc0f';
+        ctx.fillStyle = style.secondary;
         ctx.fillRect(player.x - 5, player.y - 25, (player.throwPower / 100) * 30, 6);
     } else if (player.displayPowerTimer > 0) {
-        ctx.fillStyle = '#0f380f';
+        ctx.fillStyle = style.dark;
         ctx.fillRect(player.x - 5, player.y - 25, 30, 6);
-        ctx.fillStyle = '#9bbc0f'; 
+        ctx.fillStyle = style.secondary; 
         ctx.fillRect(player.x - 5, player.y - 25, (player.lastThrowPower / 100) * 30, 6);
     }
 
     ctx.restore();
 
     // UI Fija (Barra de Vida en Pantalla)
-    ctx.fillStyle = '#0f380f';
+    ctx.fillStyle = style.dark;
     ctx.fillRect(15, 15, player.maxHp, 12);
-    ctx.fillStyle = '#9bbc0f';
+    ctx.fillStyle = style.secondary;
     ctx.fillRect(15, 15, player.hp, 12);
+
+    // Indicador de nivel superior izquierdo
+    ctx.fillStyle = style.dark;
+    ctx.font = 'bold 14px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText(`LVL ${currentLevel}`, 15, 45);
+
+    // Texto de transición de Nivel
+    if (levelTransitionTimer > 0) {
+        ctx.fillStyle = style.dark;
+        ctx.font = 'bold 20px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(`ENTRANDO AL NIVEL ${currentLevel}`, canvas.width / 2, canvas.height / 3);
+    }
 
     // Texto de Pausa
     if (isPaused) {
         if (Math.floor(pauseFlashTimer / 30) % 2 === 0) {
-            ctx.fillStyle = '#0f380f';
+            ctx.fillStyle = style.dark;
             ctx.font = 'bold 24px monospace';
             ctx.textAlign = 'center';
             ctx.fillText('PAUSA', canvas.width / 2, canvas.height / 2);
